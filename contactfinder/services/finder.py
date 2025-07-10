@@ -5,8 +5,8 @@ from typing import Dict, Any
 from ..models.cache import Company, Employee
 from ..agents import get_agent
 from ..prompts import (
-    COMPANY_EMAIL_DOMAIN_PROMPT_V2,
-    EMPLOYEE_EMAIL_PROMPT_V2,
+    COMPANY_EMAIL_DOMAIN_PROMPT_V3,
+    EMPLOYEE_EMAIL_PROMPT_V3,
 )
 from .cache import (
     get_company_from_cache,
@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_AGENT = "gemini"
-COMPANY_PROMPT_VERSION = COMPANY_EMAIL_DOMAIN_PROMPT_V2
-EMPLOYEE_PROMPT_VERSION = EMPLOYEE_EMAIL_PROMPT_V2
+COMPANY_PROMPT_VERSION = COMPANY_EMAIL_DOMAIN_PROMPT_V3
+EMPLOYEE_PROMPT_VERSION = EMPLOYEE_EMAIL_PROMPT_V3
 
 
 def extract_json_from_llm_response(text: str) -> str:
@@ -86,6 +86,7 @@ def find_or_create_company(
             email_patterns=data.get("email_patterns", []),
             known_emails=data.get("known_emails", []),
             all_domains=data.get("all_domains", []),
+            summary=data.get("summary", ""),
         )
 
         return company, False
@@ -99,6 +100,7 @@ def find_or_create_company(
             email_patterns=[
                 {"pattern": "first.last", "confidence": 0.5, "source": "fallback"}
             ],
+            summary="",
         )
         return company, False
 
@@ -146,6 +148,7 @@ def find_or_create_employee(
             primary_email=data.get("primary_email", ""),
             name_variations=data.get("name_variations", {}),
             candidate_emails=data.get("candidate_emails", []),
+            additional_info=data.get("additional_info", {}),
         )
 
         return employee, False
@@ -158,6 +161,7 @@ def find_or_create_employee(
             full_name=person_name,
             primary_email="",
             candidate_emails=[],
+            additional_info={},
         )
         return employee, False
 
@@ -219,12 +223,21 @@ def find_contact(
         cache_hit = "none"
 
     return {
+        # Employee data
         "email": email,
         "confidence": confidence,
+        "candidate_emails": candidate_emails,
+        "additional_info": employee.additional_info,
+        # Company data
+        "company_name": company.name,
+        "company_summary": company.summary,
+        "primary_domain": company.primary_domain,
+        "email_patterns": company.email_patterns,
+        "all_domains": company.all_domains,
+        "known_emails": company.known_emails,
+        # Process metadata
         "pattern_used": pattern_used,
         "alternatives": alternatives,
         "reasoning": " | ".join(reasoning_trail),
         "cache_hit": cache_hit,
-        "company_name": company.name,
-        "primary_domain": company.primary_domain,
     }
