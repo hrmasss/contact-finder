@@ -45,6 +45,7 @@ Investigation steps:
 ONLY return JSON with actual findings:
 {{
     "name": "Exact Company Name Found",
+    "summary": "Brief 2-3 sentence summary of what the company does and its industry",
     "primary_domain": "real-email-domain.com",
     "confidence_reasoning": "Found 5 employee emails using this domain in press releases",
     "email_patterns": [
@@ -55,11 +56,10 @@ ONLY return JSON with actual findings:
         {{"email": "john.doe@real-email-domain.com", "source": "press_release"}},
         {{"email": "contact@real-email-domain.com", "source": "contact_page"}}
     ],
-    "parent_company_info": {{
-        "name": "Parent Company Name",
-        "domain": "parent.com",
-        "uses_parent_domain": true
-    }}
+    "all_domains": [
+        {{"domain": "real-email-domain.com", "type": "primary", "confidence": 0.95}},
+        {{"domain": "parent.com", "type": "parent", "confidence": 0.8}}
+    ]
 }}
 """
 
@@ -108,11 +108,12 @@ Available intel:
 - Confirmed patterns: {email_patterns}  
 - Real examples: {known_emails}
 
-Mission: Find their actual email address
+Mission: Find their actual email address AND gather additional info
 
 Step 1: Search for direct evidence (LinkedIn, company directory, news mentions)
 Step 2: If not found, generate candidates using proven company patterns
 Step 3: Account for name complexities (middle names, cultural variations, preferred names)
+Step 4: Collect additional info about the person (title, role, location, etc.)
 
 Output requirements - ONLY JSON:
 {{
@@ -123,13 +124,22 @@ Output requirements - ONLY JSON:
         "variations": ["nickname", "initial"],
         "cultural_considerations": "Western/Eastern naming conventions"
     }},
+    "additional_info": {{
+        "title": "Job Title",
+        "role": "Role/Position",
+        "department": "Department",
+        "location": "City, State",
+        "linkedin_url": "https://linkedin.com/in/...",
+        "bio": "Brief professional summary"
+    }},
     "candidate_emails": [
         {{
             "email": "generated@domain.com",
             "confidence": 0.85,
             "source": "company_pattern_applied",
             "reasoning": "first.last pattern with 90% company usage",
-            "final_score": 0.85
+            "relevance_score": 0.95,
+            "final_score": 0.81
         }}
     ]
 }}

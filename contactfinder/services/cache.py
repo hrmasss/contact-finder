@@ -31,6 +31,7 @@ def save_company_to_cache(
     email_patterns: list = None,
     known_emails: list = None,
     all_domains: list = None,
+    summary: str = None,
 ) -> Company:
     """Save or update company in cache."""
     company = Company.find_by_alias(name) or Company(name=name)
@@ -39,6 +40,7 @@ def save_company_to_cache(
     company.email_patterns = email_patterns or []
     company.known_emails = known_emails or []
     company.all_domains = all_domains or []
+    company.summary = summary or ""
     company.cache_expires_at = timezone.now() + timedelta(days=90)
     company.last_validated_at = timezone.now()
     company.save()
@@ -53,6 +55,7 @@ def save_employee_to_cache(
     primary_email: str = "",
     name_variations: dict = None,
     candidate_emails: list = None,
+    additional_info: dict = None,
 ) -> Employee:
     """Save or update employee in cache."""
     employee = company.employees.filter(full_name__iexact=full_name).first()
@@ -66,6 +69,7 @@ def save_employee_to_cache(
     employee.primary_email = primary_email
     employee.name_variations = name_variations or {}
     employee.candidate_emails = candidate_emails or []
+    employee.additional_info = additional_info or {}
     employee.last_validated_at = timezone.now()
     employee.save()
 

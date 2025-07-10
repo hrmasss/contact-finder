@@ -20,12 +20,42 @@ class ContactFinderRequestSerializer(serializers.Serializer):
 class ContactFinderResponseSerializer(serializers.Serializer):
     """Serializer for contact finder response."""
 
+    # Employee data
     email = serializers.EmailField(
         allow_null=True, help_text="Most likely email address"
     )
     confidence = serializers.FloatField(
         help_text="Confidence score between 0.0 and 1.0"
     )
+    candidate_emails = serializers.ListField(
+        child=serializers.DictField(),
+        help_text="All candidate emails with scores and details",
+    )
+    additional_info = serializers.DictField(
+        help_text="Additional employee information (title, role, location, etc.)"
+    )
+
+    # Company data
+    company_name = serializers.CharField(help_text="Resolved company name")
+    company_summary = serializers.CharField(
+        help_text="Brief summary of what the company does"
+    )
+    primary_domain = serializers.CharField(
+        help_text="Primary email domain for the company"
+    )
+    email_patterns = serializers.ListField(
+        child=serializers.DictField(),
+        help_text="Company email patterns with confidence scores",
+    )
+    all_domains = serializers.ListField(
+        child=serializers.DictField(),
+        help_text="All domains associated with the company",
+    )
+    known_emails = serializers.ListField(
+        child=serializers.DictField(), help_text="Known public emails for the company"
+    )
+
+    # Process metadata
     pattern_used = serializers.CharField(
         allow_null=True, help_text="Email pattern used"
     )
@@ -35,10 +65,4 @@ class ContactFinderResponseSerializer(serializers.Serializer):
     reasoning = serializers.CharField(help_text="Step-by-step reasoning trail")
     cache_hit = serializers.CharField(
         help_text="Cache hit level: none, company, employee, both"
-    )
-    company_name = serializers.CharField(
-        help_text="Resolved company name"
-    )
-    primary_domain = serializers.CharField(
-        help_text="Primary email domain for the company"
     )
