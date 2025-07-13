@@ -15,6 +15,11 @@ class ContactFinderRequestSerializer(serializers.Serializer):
         default=True,
         help_text="Use cached data when available (default: True)",
     )
+    advanced_validation = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Enable advanced email validation (SMTP, external APIs) for more accurate confidence scores (default: False)",
+    )
 
 
 class ContactFinderResponseSerializer(serializers.Serializer):

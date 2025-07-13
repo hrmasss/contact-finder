@@ -291,14 +291,22 @@ class Employee(BaseModel):
                 )
 
                 # Adjust confidence based on verification
+                original_confidence = candidate["confidence"]
                 if smtp_status == "deliverable":
-                    candidate["confidence"] = min(candidate["confidence"] * 1.2, 1.0)
+                    candidate["confidence"] = min(
+                        original_confidence * 1.05, 1.0
+                    )  # +5% modest bonus
                 elif smtp_status == "undeliverable":
-                    candidate["confidence"] = candidate["confidence"] * 0.1
+                    candidate["confidence"] = max(
+                        original_confidence * 0.3, 0.05
+                    )  # Moderate penalty, min 5%
                 elif smtp_status == "catch_all":
                     candidate["confidence"] = (
-                        candidate["confidence"] * 0.7
-                    )  # Uncertainty penalty
+                        original_confidence * 0.95
+                    )  # Very small penalty
+
+                # Ensure confidence stays in 0-1 range
+                candidate["confidence"] = max(0.0, min(candidate["confidence"], 1.0))
 
                 # Recalculate final score
                 candidate["final_score"] = (
@@ -327,3 +335,49 @@ class Employee(BaseModel):
             return True
 
         return timezone.now() < self.cache_expires_at
+
+    def get_confidence_percentage(self, email=None):
+        """
+        Get confidence as percentage (0-100%) for display.
+
+        Args:
+            email: Specific email to get confidence for, or None for best email
+
+        Returns:
+            float: Confidence as percentage (0.0-100.0)
+        """
+        if email:
+            # Find specific email confidence
+            for candidate in self.candidate_emails:
+                if candidate["email"] == email:
+                    return round(candidate.get("confidence", 0.0) * 100, 1)
+            return 0.0
+        else:
+            # Get best email confidence
+            best = self.get_best_email()
+            if best:
+                return round(best.get("confidence", 0.0) * 100, 1)
+            return 0.0
+
+    def get_final_score_percentage(self, email=None):
+        """
+        Get final score as percentage (0-100%) for display.
+
+        Args:
+            email: Specific email to get score for, or None for best email
+
+        Returns:
+            float: Final score as percentage (0.0-100.0)
+        """
+        if email:
+            # Find specific email final score
+            for candidate in self.candidate_emails:
+                if candidate["email"] == email:
+                    return round(candidate.get("final_score", 0.0) * 100, 1)
+            return 0.0
+        else:
+            # Get best email final score
+            best = self.get_best_email()
+            if best:
+                return round(best.get("final_score", 0.0) * 100, 1)
+            return 0.0

@@ -5,6 +5,7 @@ from .cache import (
     save_company_to_cache,
     save_employee_to_cache,
 )
+from .validation import validate_email_candidates
 
 __all__ = [
     "find_contact",
@@ -12,4 +13,5 @@ __all__ = [
     "get_employee_from_cache",
     "save_company_to_cache",
     "save_employee_to_cache",
+    "validate_email_candidates",
 ]

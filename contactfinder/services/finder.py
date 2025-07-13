@@ -106,10 +106,21 @@ def find_or_create_company(
 
 
 def find_or_create_employee(
-    company: Company, person_name: str, use_cache: bool = True, agent_name: str = None
+    company: Company,
+    person_name: str,
+    use_cache: bool = True,
+    agent_name: str = None,
+    advanced_validation: bool = False,
 ) -> tuple[Employee, bool]:
     """
     Find employee in cache or create new one using LLM.
+
+    Args:
+        company: Company object
+        person_name: Full name of the person
+        use_cache: Whether to use cached data
+        agent_name: Name of the agent to use
+        advanced_validation: Whether to enable advanced email validation (SMTP, external APIs)
 
     Returns:
         tuple: (Employee object, cache_hit: bool)
@@ -141,7 +152,7 @@ def find_or_create_employee(
         json_str = extract_json_from_llm_response(llm_response)
         data = json.loads(json_str)
 
-        # Create or update employee
+        # Create or update employee with validation
         employee = save_employee_to_cache(
             company=company,
             full_name=person_name,
@@ -149,25 +160,30 @@ def find_or_create_employee(
             name_variations=data.get("name_variations", {}),
             candidate_emails=data.get("candidate_emails", []),
             additional_info=data.get("additional_info", {}),
+            validate_emails=advanced_validation,  # Use the parameter from API
         )
 
         return employee, False
 
     except Exception as e:
         logger.error(f"[{agent_name or DEFAULT_AGENT}] Employee search failed: {e}")
-        # Fallback: create minimal employee record
+        # Fallback: create minimal employee record (no validation needed for empty candidates)
         employee = save_employee_to_cache(
             company=company,
             full_name=person_name,
             primary_email="",
             candidate_emails=[],
             additional_info={},
+            validate_emails=False,  # No validation needed for empty list
         )
         return employee, False
 
 
 def find_contact(
-    company_query: str, person_name: str, use_cache: bool = True
+    company_query: str,
+    person_name: str,
+    use_cache: bool = True,
+    advanced_validation: bool = False,
 ) -> Dict[str, Any]:
     """
     Simplified contact finder without LangGraph.
@@ -176,6 +192,7 @@ def find_contact(
         company_query: Company name or identifier
         person_name: Full name of the person
         use_cache: If False, bypass cache and use fresh LLM lookup
+        advanced_validation: If True, enable advanced email validation (SMTP, external APIs) for more accurate confidence scores
 
     Returns:
         Dict with email, confidence, and reasoning
@@ -190,7 +207,7 @@ def find_contact(
 
     # Step 3: Find or create employee
     employee, employee_cache_hit = find_or_create_employee(
-        company, person_name, use_cache
+        company, person_name, use_cache, advanced_validation=advanced_validation
     )
     reasoning_trail.append(
         f"Employee lookup: {'cache hit' if employee_cache_hit else 'fresh search'} for '{person_name}'"

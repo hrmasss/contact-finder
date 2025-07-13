@@ -294,3 +294,8 @@ SPECTACULAR_SETTINGS = {
         "tryItOutEnabled": True,
     },
 }
+
+
+# --- EMAIL VALIDATION ---
+# External email validation service configuration
+EMAIL_VERIFIER_KEY = os.getenv("EMAIL_VERIFIER_KEY")

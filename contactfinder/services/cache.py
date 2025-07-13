@@ -56,8 +56,16 @@ def save_employee_to_cache(
     name_variations: dict = None,
     candidate_emails: list = None,
     additional_info: dict = None,
+    validate_emails: bool = True,
 ) -> Employee:
-    """Save or update employee in cache."""
+    """
+    Save or update employee in cache with optional advanced email validation.
+
+    Args:
+        validate_emails: Enable advanced validation (SMTP, external APIs, etc.)
+    """
+    from .validation import validate_email_candidates
+
     employee = company.employees.filter(full_name__iexact=full_name).first()
     if not employee:
         employee = Employee(
@@ -65,6 +73,17 @@ def save_employee_to_cache(
             full_name=full_name,
             cache_expires_at=timezone.now() + timedelta(days=30),
         )
+
+    # Validate candidate emails if requested and candidates exist
+    if validate_emails and candidate_emails:
+        candidate_emails = validate_email_candidates(candidate_emails)
+
+        # Update primary_email to be the best validated candidate
+        if candidate_emails:
+            best_candidate = max(
+                candidate_emails, key=lambda x: x.get("final_score", 0)
+            )
+            primary_email = best_candidate.get("email", primary_email)
 
     employee.primary_email = primary_email
     employee.name_variations = name_variations or {}

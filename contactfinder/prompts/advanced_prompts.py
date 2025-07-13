@@ -208,9 +208,31 @@ STEP-BY-STEP:
 
 1. Search publicly available information (conferences, staff listings, academic papers, blogs, press, LinkedIn) for a **direct email** for the person. If found, return it immediately with the source.
 
-2. If no public email is found, **use the company’s domain and naming patterns** to make a best-guess.
+2. If no public email is found, **use the company's domain and naming patterns** to make a best-guess.
 
 3. If the person has a personal website, GitHub, LinkedIn, or university profile, consider those for alternative addresses too.
+
+CONFIDENCE SCORING GUIDELINES:
+Use these confidence levels based on source and validation:
+
+HIGH CONFIDENCE (0.85-0.95):
+- Email found directly in public sources (LinkedIn, company directory, press releases, etc.)
+- AND matches person name and company domain
+- Source: "public_found"
+
+MEDIUM-HIGH CONFIDENCE (0.70-0.84):
+- Generated using company pattern that matches multiple public emails from same company
+- AND person name components align with pattern logic
+- Source: "pattern_verified"
+
+MEDIUM CONFIDENCE (0.50-0.69):
+- Generated using suspected company pattern with limited verification
+- OR partial name match with known pattern
+- Source: "pattern_suspected"
+
+LOW CONFIDENCE (0.30-0.49):
+- Generated using common patterns (first.last, etc.) without company-specific evidence
+- Source: "pattern_generic"
 
 4. Return a JSON object with the following fields:
 
@@ -234,15 +256,17 @@ STEP-BY-STEP:
         {{
             "email": "generated@domain.com",
             "confidence": 0.85,
-            "source": "public_found_or_company_pattern_applied",
+            "source": "public_found|pattern_verified|pattern_suspected|pattern_generic",
             "reasoning": "Found in LinkedIn profile or first.last pattern with 90% company usage",
-            "final_score": 0.81
+            "final_score": 0.85
         }}
     ]
 }}
 
 RULES:
 - Never guess if a valid public address is already found.
+- Set initial final_score = confidence (validation adjustments will be applied later)
+- Always provide detailed reasoning for confidence level
 - Always use naming patterns backed by evidence from the company domain prompt.
 - If the domain is part of a parent company, consider parent domains and patterns too.
 """
