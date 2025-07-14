@@ -4,5 +4,6 @@ from . import api
 app_name = "pipeline"
 
 urlpatterns = [
-    path("discover/", api.discover_company_domains, name="discover"),
+    path("discover-company/", api.discover_company_domains, name="discover-company"),
+    path("discover-employee/", api.discover_employees, name="discover-employee"),
 ]

@@ -207,3 +207,225 @@ class DiscoveredCompany(BaseModel):
         self.cache_expires_at = timezone.now() + timezone.timedelta(days=days)
         self.last_validated_at = timezone.now()
         self.save(update_fields=["cache_expires_at", "last_validated_at"])
+
+
+class DiscoveredEmployee(BaseModel):
+    """
+    Employee model for contact discovery with email candidates.
+
+    This model stores the results of employee discovery including:
+    - Employee details and name variations
+    - All candidate emails with confidence scores
+    - Company association for context
+    - Search aliases for cache optimization
+    """
+
+    company = models.ForeignKey(
+        DiscoveredCompany,
+        on_delete=models.CASCADE,
+        related_name="discovered_employees",
+        help_text="Company this employee belongs to",
+    )
+
+    full_name = models.CharField(
+        max_length=255,
+        help_text="Complete name as found from source",
+    )
+
+    name_variations = models.JSONField(
+        default=dict,
+        help_text="Name components and variations for email generation. "
+        "Structure: {"
+        "  'first_name': 'Timothy', "
+        "  'last_name': 'Johnson', "
+        "  'nickname': 'Tim', "
+        "  'initials': 'TJ', "
+        "  'middle_name': 'Robert', "
+        "  'name_variants': ['T. Johnson', 'Tim J.', 'Timothy R. Johnson'] "
+        "}",
+    )
+
+    email_candidates = models.JSONField(
+        default=list,
+        help_text="All possible emails with confidence scores. "
+        "Structure: [{"
+        "  'email': 'tim.johnson@acme.com', "
+        "  'confidence': 0.92, "
+        "  'source': 'pattern_generated',  # pattern_generated|scraped|api_lookup|linkedin|manual"
+        "  'pattern_used': 'first.last', "
+        "  'domain': 'acme.com', "
+        "  'verified': false, "
+        "  'verification_method': 'none'  # none|smtp_check|api_verify|send_test"
+        "}]",
+    )
+
+    additional_info = models.JSONField(
+        default=dict,
+        help_text="Additional employee information from discovery. "
+        "Structure: {"
+        "  'title': 'Senior Manager', "
+        "  'department': 'Engineering', "
+        "  'linkedin_url': 'https://linkedin.com/in/...', "
+        "  'phone': '+1-555-...', "
+        "  'location': 'New York, NY', "
+        "  'bio': 'Senior software engineer with 10+ years...', "
+        "  'skills': ['Python', 'Django', 'React'], "
+        "  'education': 'MIT Computer Science' "
+        "}",
+    )
+
+    search_aliases = models.JSONField(
+        default=list,
+        help_text="Search variations that lead to this employee. "
+        "Structure: ['Tim Johnson', 'Timothy Johnson', 'T. Johnson', 'TJ'] "
+        "Used for cache optimization and duplicate prevention.",
+    )
+
+    search_level = models.CharField(
+        max_length=20,
+        default="basic",
+        help_text="Level of search that found this employee (basic/advanced)",
+    )
+
+    metadata = models.JSONField(
+        default=dict,
+        help_text="Discovery metadata and source information. "
+        "Structure: {"
+        "  'search_query': 'John Doe at Acme Corp', "
+        "  'sources': ['linkedin', 'company_website'] "
+        "}",
+    )
+
+    cache_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this employee data becomes stale (default: 30 days)",
+    )
+
+    last_validated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When we last validated this employee's information",
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["company", "full_name"]),
+            models.Index(fields=["full_name"]),
+            models.Index(fields=["cache_expires_at"]),
+        ]
+        unique_together = ["company", "full_name"]
+
+    def __str__(self):
+        return f"{self.full_name} at {self.company.name}"
+
+    def get_best_emails(self, limit=3):
+        """
+        Get the best email candidates sorted by confidence.
+
+        Args:
+            limit: Maximum number of emails to return
+
+        Returns:
+            List of email candidates sorted by confidence descending
+        """
+        if not self.email_candidates:
+            return []
+
+        # Sort by confidence and return top results
+        sorted_emails = sorted(
+            self.email_candidates, key=lambda x: x.get("confidence", 0), reverse=True
+        )
+        return sorted_emails[:limit]
+
+    def get_best_email(self):
+        """
+        Get the single best email candidate.
+
+        Returns:
+            Dict with email info or None if no candidates
+        """
+        best_emails = self.get_best_emails(limit=1)
+        return best_emails[0] if best_emails else None
+
+    def add_email_candidate(
+        self, email, confidence, source="generated", **kwargs
+    ):
+        """
+        Add a new email candidate with confidence score.
+
+        Args:
+            email: Email address
+            confidence: Confidence score (0.0-1.0)
+            source: Source of this email
+            **kwargs: Additional metadata
+        """
+        candidate = {
+            "email": email,
+            "confidence": confidence,
+            "source": source,
+            "verified": False,
+            "verification_method": "none",
+            "last_checked": timezone.now().isoformat(),
+            **kwargs
+        }
+
+        # Remove duplicates and add new candidate
+        existing = [c for c in self.email_candidates if c["email"] != email]
+        existing.append(candidate)
+
+        # Sort by confidence descending
+        self.email_candidates = sorted(
+            existing, key=lambda x: x.get("confidence", 0), reverse=True
+        )
+
+        self.save(update_fields=["email_candidates"])
+
+    def add_search_alias(self, alias):
+        """Add search alias to improve cache hit rates."""
+        if alias and alias.lower() not in [a.lower() for a in self.search_aliases]:
+            self.search_aliases.append(alias)
+            self.save(update_fields=["search_aliases"])
+
+    @classmethod
+    def find_by_alias(cls, search_term, company=None):
+        """
+        Find employee by name or search aliases.
+
+        Args:
+            search_term: Name or alias to search for
+            company: Optional company to filter by
+
+        Returns:
+            DiscoveredEmployee or None
+        """
+        search_lower = search_term.lower().strip()
+
+        # Build query
+        query = cls.objects.all()
+        if company:
+            query = query.filter(company=company)
+
+        # First try exact name match
+        employee = query.filter(full_name__iexact=search_lower).first()
+        if employee:
+            return employee
+
+        # Then check aliases
+        for employee in query:
+            aliases = [alias.lower().strip() for alias in employee.search_aliases]
+            if search_lower in aliases:
+                return employee
+
+        return None
+
+    def is_cache_valid(self):
+        """Check if employee data is still fresh."""
+        if not self.cache_expires_at:
+            return True
+        return timezone.now() < self.cache_expires_at
+
+    def update_cache_expiry(self, days=30):
+        """Update cache expiry to specified days from now."""
+        self.cache_expires_at = timezone.now() + timezone.timedelta(days=days)
+        self.save(update_fields=["cache_expires_at"])
