@@ -75,13 +75,15 @@ class CompanyDiscoveryPipeline:
                 for result in rocketreach_results[
                     : MAX_RESULTS_PER_SERVICE["rocketreach"]
                 ]:
-                    # Validate domains
+                    # Validate domains with comprehensive validation (including MX records)
                     validated_domains = []
                     for domain in result.email_domains:
                         if DataValidator.validate_domain(domain.domain):
-                            domain.confidence = DataValidator.adjust_confidence(
-                                domain.confidence, domain.source
+                            # Apply comprehensive domain validation with MX check
+                            adjusted_confidence = DataValidator.adjust_confidence_for_domain(
+                                domain.domain, domain.confidence
                             )
+                            domain.confidence = adjusted_confidence
                             validated_domains.append(domain)
 
                     if validated_domains:
@@ -109,7 +111,7 @@ class CompanyDiscoveryPipeline:
 
         # Process Gemini results with validation and context awareness
         for result in gemini_results[: MAX_RESULTS_PER_SERVICE["gemini"]]:
-            # Validate and adjust confidence for Gemini domains
+            # Validate and adjust confidence for Gemini domains with comprehensive validation
             validated_domains = []
             for domain in result.email_domains:
                 if DataValidator.validate_domain(domain.domain):
@@ -123,9 +125,13 @@ class CompanyDiscoveryPipeline:
                     else:
                         source = "gemini_raw"
 
-                    domain.confidence = DataValidator.adjust_confidence(
-                        domain.confidence, source
+                    # Apply comprehensive domain validation with MX check 
+                    # This includes the source reliability adjustment + domain validation penalties
+                    base_confidence = DataValidator.adjust_confidence(domain.confidence, source)
+                    adjusted_confidence = DataValidator.adjust_confidence_for_domain(
+                        domain.domain, base_confidence
                     )
+                    domain.confidence = adjusted_confidence
                     validated_domains.append(domain)
 
             if validated_domains:
