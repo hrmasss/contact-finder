@@ -4,6 +4,7 @@ from django.urls import path, include
 from common import urls as common_urls
 from accounts import urls as accounts_urls
 from contactfinder import urls as contactfinder_urls
+from pipeline import urls as contactdiscovery_urls
 from django.conf.urls.static import static
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -26,6 +27,8 @@ urlpatterns = [
     path("api/accounts/", include(accounts_urls)),
     # Contact finder app URLs
     path("api/contactfinder/", include(contactfinder_urls)),
+    # Contact discovery app URLs
+    path("api/contactdiscovery/", include(contactdiscovery_urls)),
 ]
 
 if settings.DEBUG:

@@ -64,7 +64,7 @@ THIRD_PARTY_APPS = [
 ]
 
 # Local applications
-LOCAL_APPS = ["accounts", "common", "contactfinder"]
+LOCAL_APPS = ["accounts", "common", "contactfinder", "pipeline"]
 
 # Combine all applications
 INSTALLED_APPS = UNFOLD_APPS + DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
